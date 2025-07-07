@@ -17,15 +17,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// app.use(clerkMiddleware());
-app.use(
-  clerkMiddleware({
-    // Optional: For extra safety in custom setups
-    secretKey: ENV.CLERK_SECRET_KEY,
-    publishableKey: ENV.CLERK_PUBLISHABLE_KEY,
-  })
-);
-
+app.use(clerkMiddleware());
 app.use(arcjetMiddleware);
 
 app.get("/", (req, res) => {
