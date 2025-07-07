@@ -22,7 +22,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const syncUser = asyncHandler(async (req, res) => {
+  console.log("asyncHandler:");
+  console.log("req", req);
+
   const { userId } = getAuth(req);
+
+  console.log("Entering backend Sync:");
 
   //Check user already exists in mongoDB
   const existingUser = await User.findOne({ clerkId: userId });
