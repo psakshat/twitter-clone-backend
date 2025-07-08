@@ -1,5 +1,4 @@
 import asyncHandler from "express-async-handler";
-import { getAuth } from "@clerk/express";
 import Comment from "../models/comment.model.js";
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
@@ -16,19 +15,18 @@ export const getComments = asyncHandler(async (req, res) => {
 });
 
 export const createComment = asyncHandler(async (req, res) => {
-  const { userId } = getAuth(req);
+  const user = req.user; // from protectRoute
   const { postId } = req.params;
   const { content } = req.body;
+
+  if (!user) return res.status(401).json({ error: "User not authenticated" });
 
   if (!content || content.trim() === "") {
     return res.status(400).json({ error: "Comment content is required" });
   }
 
-  const user = await User.findOne({ clerkId: userId });
   const post = await Post.findById(postId);
-
-  if (!user || !post)
-    return res.status(404).json({ error: "User or post not found" });
+  if (!post) return res.status(404).json({ error: "Post not found" });
 
   const comment = await Comment.create({
     user: user._id,
@@ -36,12 +34,12 @@ export const createComment = asyncHandler(async (req, res) => {
     content,
   });
 
-  // link the comment to the post
+  // Link the comment to the post
   await Post.findByIdAndUpdate(postId, {
     $push: { comments: comment._id },
   });
 
-  // create notification if not commenting on own post
+  // Create notification if not commenting on own post
   if (post.user.toString() !== user._id.toString()) {
     await Notification.create({
       from: user._id,
@@ -56,15 +54,13 @@ export const createComment = asyncHandler(async (req, res) => {
 });
 
 export const deleteComment = asyncHandler(async (req, res) => {
-  const { userId } = getAuth(req);
+  const user = req.user;
   const { commentId } = req.params;
 
-  const user = await User.findOne({ clerkId: userId });
-  const comment = await Comment.findById(commentId);
+  if (!user) return res.status(401).json({ error: "User not authenticated" });
 
-  if (!user || !comment) {
-    return res.status(404).json({ error: "User or comment not found" });
-  }
+  const comment = await Comment.findById(commentId);
+  if (!comment) return res.status(404).json({ error: "Comment not found" });
 
   if (comment.user.toString() !== user._id.toString()) {
     return res
@@ -72,12 +68,12 @@ export const deleteComment = asyncHandler(async (req, res) => {
       .json({ error: "You can only delete your own comments" });
   }
 
-  // remove comment from post
+  // Remove comment from post
   await Post.findByIdAndUpdate(comment.post, {
     $pull: { comments: commentId },
   });
 
-  // delete the comment
+  // Delete the comment
   await Comment.findByIdAndDelete(commentId);
 
   res.status(200).json({ message: "Comment deleted successfully" });

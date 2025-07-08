@@ -1,13 +1,11 @@
 import asyncHandler from "express-async-handler";
-import { getAuth } from "@clerk/express";
 import Notification from "../models/notification.model.js";
 import User from "../models/user.model.js";
 
 export const getNotifications = asyncHandler(async (req, res) => {
-  const { userId } = getAuth(req);
+  const user = req.user; // from protectRoute middleware
 
-  const user = await User.findOne({ clerkId: userId });
-  if (!user) return res.status(404).json({ error: "User not found" });
+  if (!user) return res.status(401).json({ error: "User not authenticated" });
 
   const notifications = await Notification.find({ to: user._id })
     .sort({ createdAt: -1 })
@@ -19,11 +17,10 @@ export const getNotifications = asyncHandler(async (req, res) => {
 });
 
 export const deleteNotification = asyncHandler(async (req, res) => {
-  const { userId } = getAuth(req);
+  const user = req.user;
   const { notificationId } = req.params;
 
-  const user = await User.findOne({ clerkId: userId });
-  if (!user) return res.status(404).json({ error: "User not found" });
+  if (!user) return res.status(401).json({ error: "User not authenticated" });
 
   const notification = await Notification.findOneAndDelete({
     _id: notificationId,
