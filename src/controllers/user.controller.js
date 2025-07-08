@@ -2,7 +2,8 @@ import asyncHandler from "express-async-handler";
 import User from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
 
-import { clerkClient, getAuth } from "@clerk/express";
+import { getAuth } from "@clerk/express";
+import { clerkClient } from "@clerk/express";
 
 export const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
@@ -14,22 +15,20 @@ export const getUserProfile = asyncHandler(async (req, res) => {
 
 export const updateProfile = asyncHandler(async (req, res) => {
   const { userId } = getAuth(req);
+
   const user = await User.findOneAndUpdate({ clerkId: userId }, req.body, {
     new: true,
   });
+
   if (!user) return res.status(404).json({ error: "User not found" });
+
   res.status(200).json({ user });
 });
 
 export const syncUser = asyncHandler(async (req, res) => {
-  console.log("asyncHandler:");
-  console.log("req", req);
-
   const { userId } = getAuth(req);
 
-  console.log("Entering backend Sync:");
-
-  //Check user already exists in mongoDB
+  // check if user already exists in mongodb
   const existingUser = await User.findOne({ clerkId: userId });
   if (existingUser) {
     return res
@@ -37,7 +36,7 @@ export const syncUser = asyncHandler(async (req, res) => {
       .json({ user: existingUser, message: "User already exists" });
   }
 
-  //Create new user from Clerk data
+  // create new user from Clerk data
   const clerkUser = await clerkClient.users.getUser(userId);
 
   const userData = {
