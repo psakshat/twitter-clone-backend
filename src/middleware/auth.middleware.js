@@ -21,6 +21,7 @@
 //   next();
 // };
 export const protectRoute = async (req, res, next) => {
+  console.log("🚦 protectRoute middleware triggered"); // Added log at the very start
   try {
     console.log("🔐 Protecting route...");
     console.log("Headers:", req.headers.authorization);
