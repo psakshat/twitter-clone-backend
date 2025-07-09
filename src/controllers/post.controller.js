@@ -60,7 +60,7 @@ export const getUserPosts = asyncHandler(async (req, res) => {
 });
 
 export const createPost = asyncHandler(async (req, res) => {
-  const user = req.user; // from protectRoute middleware
+  const user = req.user;
   const { content } = req.body;
   const imageFile = req.file;
 
@@ -74,10 +74,13 @@ export const createPost = asyncHandler(async (req, res) => {
 
   let imageUrl = "";
 
-  // upload image to Cloudinary if provided
   if (imageFile) {
+    console.log("Mimetype:", imageFile.mimetype);
+    console.log("Original name:", imageFile.originalname);
+    console.log("Buffer type:", typeof imageFile.buffer);
+    console.log("Buffer length:", imageFile.buffer?.length);
+
     try {
-      // convert buffer to base64 for cloudinary
       const base64Image = `data:${
         imageFile.mimetype
       };base64,${imageFile.buffer.toString("base64")}`;
@@ -91,6 +94,7 @@ export const createPost = asyncHandler(async (req, res) => {
           { format: "auto" },
         ],
       });
+
       imageUrl = uploadResponse.secure_url;
     } catch (uploadError) {
       console.error("Cloudinary upload error:", uploadError);
