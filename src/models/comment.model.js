@@ -1,36 +1,54 @@
 import mongoose from "mongoose";
 
-const commentSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    post: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Post",
-      required: true,
-    },
-    content: {
-      type: String,
-      required: true,
-      maxLength: 280,
-    },
-    likes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    parentComment: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Comment",
-      default: null, // null = top-level comment
-    },
+const { Schema } = mongoose;
+
+const commentSchema = new Schema({
+  postedBy: {
+    type: Schema.Types.ObjectId,
+    required: true,
+    ref: "User",
   },
-  { timestamps: true }
-);
+  postId: {
+    type: Schema.Types.ObjectId,
+    required: true,
+    ref: "Post",
+  },
+  text: {
+    type: String,
+    required: true,
+    maxLength: 280,
+  },
+  parentComment: {
+    type: Schema.Types.ObjectId,
+    ref: "Comment",
+    default: null,
+  },
+  commentedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  replies: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "Comment",
+    },
+  ],
+  likes: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+});
+
+commentSchema.pre("find", function (next) {
+  this.populate({
+    path: "replies",
+    populate: { path: "postedBy" },
+  });
+  next();
+});
 
 const Comment = mongoose.model("Comment", commentSchema);
+
 export default Comment;
