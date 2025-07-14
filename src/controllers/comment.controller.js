@@ -1,23 +1,24 @@
 import asyncHandler from "express-async-handler";
 import Comment from "../models/comment.model.js";
 import Post from "../models/post.model.js";
-import User from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
 
+// GET TOP-LEVEL COMMENTS
 export const getComments = asyncHandler(async (req, res) => {
   const { postId } = req.params;
 
-  const comments = await Comment.find({ post: postId })
+  const comments = await Comment.find({ post: postId, parentComment: null })
     .sort({ createdAt: -1 })
     .populate("user", "username firstName lastName profilePicture");
 
   res.status(200).json({ comments });
 });
 
+// CREATE COMMENT OR REPLY
 export const createComment = asyncHandler(async (req, res) => {
-  const user = req.user; // from protectRoute
+  const user = req.user;
   const { postId } = req.params;
-  const { content } = req.body;
+  const { content, parentComment } = req.body;
 
   if (!user) return res.status(401).json({ error: "User not authenticated" });
 
@@ -28,23 +29,32 @@ export const createComment = asyncHandler(async (req, res) => {
   const post = await Post.findById(postId);
   if (!post) return res.status(404).json({ error: "Post not found" });
 
+  if (parentComment) {
+    const parent = await Comment.findById(parentComment);
+    if (!parent)
+      return res.status(404).json({ error: "Parent comment not found" });
+  }
+
   const comment = await Comment.create({
     user: user._id,
     post: postId,
     content,
+    parentComment: parentComment || null,
   });
 
-  // Link the comment to the post
   await Post.findByIdAndUpdate(postId, {
     $push: { comments: comment._id },
   });
 
-  // Create notification if not commenting on own post
-  if (post.user.toString() !== user._id.toString()) {
+  const notifyTo = parentComment
+    ? (await Comment.findById(parentComment)).user
+    : post.user;
+
+  if (notifyTo.toString() !== user._id.toString()) {
     await Notification.create({
       from: user._id,
-      to: post.user,
-      type: "comment",
+      to: notifyTo,
+      type: parentComment ? "reply" : "comment",
       post: postId,
       comment: comment._id,
     });
@@ -53,6 +63,7 @@ export const createComment = asyncHandler(async (req, res) => {
   res.status(201).json({ comment });
 });
 
+// DELETE COMMENT (AND ITS REPLIES)
 export const deleteComment = asyncHandler(async (req, res) => {
   const user = req.user;
   const { commentId } = req.params;
@@ -68,13 +79,25 @@ export const deleteComment = asyncHandler(async (req, res) => {
       .json({ error: "You can only delete your own comments" });
   }
 
-  // Remove comment from post
   await Post.findByIdAndUpdate(comment.post, {
     $pull: { comments: commentId },
   });
 
-  // Delete the comment
   await Comment.findByIdAndDelete(commentId);
+  await Comment.deleteMany({ parentComment: commentId }); // cascade delete replies
 
-  res.status(200).json({ message: "Comment deleted successfully" });
+  res
+    .status(200)
+    .json({ message: "Comment and its replies deleted successfully" });
+});
+
+// GET REPLIES TO A COMMENT
+export const getReplies = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
+
+  const replies = await Comment.find({ parentComment: commentId })
+    .sort({ createdAt: 1 })
+    .populate("user", "username firstName lastName profilePicture");
+
+  res.status(200).json({ replies });
 });
