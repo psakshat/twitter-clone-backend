@@ -1,4 +1,3 @@
-// socket/index.js
 import messageSocket from "./messageSocket.js";
 
 export default function setupSocketIO(io) {

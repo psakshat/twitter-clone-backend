@@ -1,10 +1,11 @@
-// socket/messageSocket.js
 import { Message, Conversation } from "../models/index.js";
 
 export default function messageSocket(io, onlineUsers, socket) {
   socket.on("send-msg", async (data) => {
     try {
       const { conversationId, sender, receiver, text, media } = data;
+      console.log("Message data received:", data);
+
       const message = await Message.create({
         conversationId,
         sender,
@@ -12,6 +13,8 @@ export default function messageSocket(io, onlineUsers, socket) {
         text,
         media,
       });
+
+      console.log("Message created:", message);
 
       const receiverSocketId = onlineUsers.get(receiver);
       if (receiverSocketId) {
