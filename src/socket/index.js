@@ -11,6 +11,10 @@ export default function setupSocketIO(io) {
       onlineUsers.set(userId, socket.id);
       socket.join(userId);
       console.log(`User ${userId} added to onlineUsers`);
+      console.log(
+        "Current onlineUsers map:",
+        Array.from(onlineUsers.entries())
+      );
     });
 
     messageSocket(io, onlineUsers, socket);

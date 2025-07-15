@@ -16,6 +16,14 @@ export default function messageSocket(io, onlineUsers, socket) {
       const receiverSocketId = onlineUsers.get(receiver);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("msg-receive", message);
+        console.log(
+          `Emitted msg-receive to receiver ${receiver} (socket ${receiverSocketId})`,
+          message
+        );
+      } else {
+        console.log(
+          `Receiver ${receiver} not online, message not delivered in real time.`
+        );
       }
     } catch (err) {
       console.error("Error sending message:", err);
