@@ -63,7 +63,7 @@ import notificationRoutes from "./routes/notification.route.js";
 import messageRoutes from "./routes/message.route.js";
 import { ENV } from "./config/env.js";
 import { connectDB } from "./config/db.js";
-import setupSocketIO from "./app/socket/index.js";
+import setupSocketIO from "./socket/index.js";
 
 dotenv.config();
 

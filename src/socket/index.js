@@ -1,6 +1,6 @@
 // app/socket/index.js
 
-import User from "../models/users.js";
+import User from "../models/user.model.js";
 import messageSocket from "./messageSocket.js";
 
 export default function setupSocketIO(io, app) {
