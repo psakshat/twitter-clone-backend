@@ -94,3 +94,9 @@ export const followUser = asyncHandler(async (req, res) => {
       : "User followed successfully",
   });
 });
+
+// Get all users (basic info only)
+export const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({}, "_id username profilePicture").lean();
+  res.status(200).json(users);
+});
