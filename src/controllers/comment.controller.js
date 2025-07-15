@@ -3,25 +3,47 @@ import Comment from "../models/comment.model.js";
 import Post from "../models/post.model.js";
 import Notification from "../models/notification.model.js";
 
-// GET TOP-LEVEL COMMENTS
+// Recursive function to get all nested replies for a comment
+const getNestedReplies = async (parentId) => {
+  const replies = await Comment.find({ parentComment: parentId })
+    .sort({ createdAt: 1 })
+    .populate("user", "username firstName lastName profilePicture")
+    .lean();
+
+  return Promise.all(
+    replies.map(async (reply) => {
+      reply.replies = await getNestedReplies(reply._id);
+      return reply;
+    })
+  );
+};
+
+// GET all top-level comments with nested replies
 export const getComments = asyncHandler(async (req, res) => {
   const { postId } = req.params;
 
   const comments = await Comment.find({ post: postId, parentComment: null })
     .sort({ createdAt: -1 })
-    .populate("user", "username firstName lastName profilePicture");
+    .populate("user", "username firstName lastName profilePicture")
+    .lean();
 
-  res.status(200).json({ comments });
+  const withNestedReplies = await Promise.all(
+    comments.map(async (comment) => {
+      comment.replies = await getNestedReplies(comment._id);
+      return comment;
+    })
+  );
+
+  res.status(200).json({ comments: withNestedReplies });
 });
 
-// CREATE COMMENT OR REPLY
+// POST: Create a comment or a reply
 export const createComment = asyncHandler(async (req, res) => {
   const user = req.user;
   const { postId } = req.params;
   const { content, parentComment } = req.body;
 
   if (!user) return res.status(401).json({ error: "User not authenticated" });
-
   if (!content || content.trim() === "") {
     return res.status(400).json({ error: "Comment content is required" });
   }
@@ -29,8 +51,9 @@ export const createComment = asyncHandler(async (req, res) => {
   const post = await Post.findById(postId);
   if (!post) return res.status(404).json({ error: "Post not found" });
 
+  let parent = null;
   if (parentComment) {
-    const parent = await Comment.findById(parentComment);
+    parent = await Comment.findById(parentComment);
     if (!parent)
       return res.status(404).json({ error: "Parent comment not found" });
   }
@@ -39,22 +62,19 @@ export const createComment = asyncHandler(async (req, res) => {
     user: user._id,
     post: postId,
     content,
-    parentComment: parentComment || null,
+    parentComment: parent?._id || null,
   });
 
   await Post.findByIdAndUpdate(postId, {
     $push: { comments: comment._id },
   });
 
-  const notifyTo = parentComment
-    ? (await Comment.findById(parentComment)).user
-    : post.user;
-
+  const notifyTo = parent ? parent.user : post.user;
   if (notifyTo.toString() !== user._id.toString()) {
     await Notification.create({
       from: user._id,
       to: notifyTo,
-      type: parentComment ? "reply" : "comment",
+      type: parent ? "reply" : "comment",
       post: postId,
       comment: comment._id,
     });
@@ -63,7 +83,17 @@ export const createComment = asyncHandler(async (req, res) => {
   res.status(201).json({ comment });
 });
 
-// DELETE COMMENT (AND ITS REPLIES)
+// Recursive function to delete nested replies
+const deleteRepliesRecursively = async (commentId) => {
+  const replies = await Comment.find({ parentComment: commentId });
+
+  for (const reply of replies) {
+    await deleteRepliesRecursively(reply._id);
+    await Comment.findByIdAndDelete(reply._id);
+  }
+};
+
+// DELETE a comment and all nested replies
 export const deleteComment = asyncHandler(async (req, res) => {
   const user = req.user;
   const { commentId } = req.params;
@@ -79,19 +109,20 @@ export const deleteComment = asyncHandler(async (req, res) => {
       .json({ error: "You can only delete your own comments" });
   }
 
+  await deleteRepliesRecursively(commentId);
+
   await Post.findByIdAndUpdate(comment.post, {
     $pull: { comments: commentId },
   });
 
   await Comment.findByIdAndDelete(commentId);
-  await Comment.deleteMany({ parentComment: commentId }); // cascade delete replies
 
   res
     .status(200)
-    .json({ message: "Comment and its replies deleted successfully" });
+    .json({ message: "Comment and all nested replies deleted successfully" });
 });
 
-// GET REPLIES TO A COMMENT
+// GET direct replies only (useful for lazy loading/pagination)
 export const getReplies = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
 

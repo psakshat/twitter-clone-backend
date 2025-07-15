@@ -29,8 +29,20 @@ const commentSchema = new mongoose.Schema(
       default: null, // null = top-level comment
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+// Virtual: repliesCount (optional, can be used for showing "View X replies")
+commentSchema.virtual("repliesCount", {
+  ref: "Comment",
+  localField: "_id",
+  foreignField: "parentComment",
+  count: true,
+});
 
 const Comment = mongoose.model("Comment", commentSchema);
 export default Comment;

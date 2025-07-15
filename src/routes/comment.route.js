@@ -9,16 +9,16 @@ import {
 
 const router = express.Router();
 
-// Get top-level comments for a post
+// Get all top-level comments + nested replies
 router.get("/post/:postId", getComments);
 
-// Get replies to a specific comment
+// Get direct replies to a comment (optional use for pagination)
 router.get("/replies/:commentId", getReplies);
 
-// Create comment or reply (authenticated)
+// Create comment or reply
 router.post("/post/:postId", protectRoute, createComment);
 
-// Delete comment (authenticated)
+// Delete comment and all nested replies
 router.delete("/:commentId", protectRoute, deleteComment);
 
 export default router;
