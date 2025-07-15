@@ -15,7 +15,7 @@ const router = express.Router();
 router.get("/profile/:username", getUserProfile);
 
 // Add this route — make it protected or public as you want:
-router.get("/all", protectRoute, getAllUsers);
+router.get("/all", getAllUsers);
 router.post("/sync", protectRoute, syncUser);
 router.get("/me", protectRoute, getCurrentUser);
 router.put("/profile", protectRoute, updateProfile);
