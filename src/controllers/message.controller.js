@@ -2,16 +2,54 @@
 import { Message, Conversation } from "../models/index.js";
 
 // Get all messages in a conversation
+// controllers/message.controller.js
+import { Message, Conversation } from "../models/index.js";
+
+// Get all messages in a conversation
 export const getMessages = async (req, res) => {
   try {
+    // Fetch messages for the conversation
     const messages = await Message.find({
       conversationId: req.params.conversationId,
     })
       .sort({ createdAt: 1 })
       .populate("sender", "username profilePicture");
 
-    res.json(messages);
+    // Create a map to track unique messages by their _id
+    const uniqueMessagesMap = new Map();
+
+    // Filter out duplicates
+    const uniqueMessages = messages.filter((msg) => {
+      const msgKey = msg._id.toString();
+      if (!uniqueMessagesMap.has(msgKey)) {
+        uniqueMessagesMap.set(msgKey, true);
+        return true;
+      }
+      return false;
+    });
+
+    // Format messages to include date and time
+    const formatted = uniqueMessages.map((msg) => ({
+      ...msg.toObject(),
+      date: msg.createdAt
+        ? msg.createdAt.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        : null,
+      time: msg.createdAt
+        ? msg.createdAt.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : null,
+    }));
+
+    res.json(formatted);
   } catch (err) {
+    console.error("Error fetching messages:", err);
     res.status(500).json({ error: "Failed to fetch messages" });
   }
 };
@@ -76,6 +114,3 @@ export const createConversation = async (req, res) => {
     res.status(500).json({ error: "Failed to create conversation" });
   }
 };
-
-
-
