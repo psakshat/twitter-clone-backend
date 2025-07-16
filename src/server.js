@@ -3,6 +3,9 @@ import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import compression from "compression";
 import { connectDB } from "./config/db.js";
 import setupSocketIO from "./socket/index.js";
 import authRoutes from "./routes/auth.route.js";
@@ -15,8 +18,56 @@ import messageRoutes from "./routes/message.route.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// Security middleware
+app.use(helmet());
+
+// Compression middleware
+app.use(compression());
+
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+});
+
+app.use("/api", limiter);
+
+// More specific rate limiting for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5, // limit each IP to 5 requests per windowMs for auth
+  message: "Too many authentication attempts, please try again later.",
+});
+
+app.use("/api/auth", authLimiter);
+
+// Input validation middleware for messages
+export const validateMessageInput = (req, res, next) => {
+  const { text, media } = req.body;
+  if (!text && !media) {
+    return res
+      .status(400)
+      .json({ error: "Message must contain text or media" });
+  }
+  if (text && text.length > 1000) {
+    return res.status(400).json({ error: "Message text too long" });
+  }
+  next();
+};
 
 // Register routes
 app.use("/api/auth", authRoutes);
@@ -38,8 +89,9 @@ app.use((err, req, res, next) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Restrict this to your frontend domain in production
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
