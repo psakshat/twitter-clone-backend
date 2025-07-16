@@ -11,37 +11,40 @@ export const getMessages = async (req, res) => {
       .sort({ createdAt: 1 })
       .populate("sender", "username profilePicture");
 
-    // Create a map to track unique messages by their _id
-    const uniqueMessagesMap = new Map();
+    // Use a Set to track unique message IDs
+    const uniqueMessageIds = new Set();
+    const uniqueMessages = [];
 
     // Filter out duplicates
-    const uniqueMessages = messages.filter((msg) => {
-      const msgKey = msg._id.toString();
-      if (!uniqueMessagesMap.has(msgKey)) {
-        uniqueMessagesMap.set(msgKey, true);
-        return true;
+    messages.forEach((msg) => {
+      const msgId = msg._id.toString();
+      if (!uniqueMessageIds.has(msgId)) {
+        uniqueMessageIds.add(msgId);
+        uniqueMessages.push(msg);
       }
-      return false;
     });
 
     // Format messages to include date and time
-    const formatted = uniqueMessages.map((msg) => ({
-      ...msg.toObject(),
-      date: msg.createdAt
-        ? msg.createdAt.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })
-        : null,
-      time: msg.createdAt
-        ? msg.createdAt.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          })
-        : null,
-    }));
+    const formatted = uniqueMessages.map((msg) => {
+      const msgObject = msg.toObject();
+      return {
+        ...msgObject,
+        date: msgObject.createdAt
+          ? new Date(msgObject.createdAt).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
+          : null,
+        time: msgObject.createdAt
+          ? new Date(msgObject.createdAt).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : null,
+      };
+    });
 
     res.json(formatted);
   } catch (err) {
