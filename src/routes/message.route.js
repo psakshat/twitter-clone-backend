@@ -6,7 +6,8 @@ import {
   getConversations,
   createConversation,
 } from "../controllers/message.controller.js";
-import { validateMessageInput } from "../server.js";
+import { validateMessageInput } from "../middleware/validateMessageInput.js"; // Import the function from the new file
+
 const router = express.Router();
 
 // 📨 Get messages for a conversation
