@@ -2,10 +2,6 @@
 import { Message, Conversation } from "../models/index.js";
 
 // Get all messages in a conversation
-// controllers/message.controller.js
-import { Message, Conversation } from "../models/index.js";
-
-// Get all messages in a conversation
 export const getMessages = async (req, res) => {
   try {
     // Fetch messages for the conversation
