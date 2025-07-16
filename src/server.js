@@ -36,10 +36,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-app.use("/api", limiter);
-
-app.use("/api/auth", authLimiter);
-
 // Register routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
