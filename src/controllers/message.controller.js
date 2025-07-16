@@ -1,68 +1,42 @@
 // controllers/message.controller.js
 import { Message, Conversation } from "../models/index.js";
-
 // Get all messages in a conversation
 export const getMessages = async (req, res) => {
   try {
-    // Fetch messages for the conversation with proper aggregation to avoid duplicates
-    const messages = await Message.aggregate([
-      {
-        $match: {
-          conversationId: req.params.conversationId,
-        },
-      },
-      {
-        $group: {
-          _id: "$_id",
-          conversationId: { $first: "$conversationId" },
-          sender: { $first: "$sender" },
-          receiver: { $first: "$receiver" },
-          text: { $first: "$text" },
-          media: { $first: "$media" },
-          seen: { $first: "$seen" },
-          seenBy: { $first: "$seenBy" },
-          isDeleted: { $first: "$isDeleted" },
-          createdAt: { $first: "$createdAt" },
-          updatedAt: { $first: "$updatedAt" },
-        },
-      },
-      {
-        $sort: { createdAt: 1 },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "sender",
-          foreignField: "_id",
-          as: "sender",
-          pipeline: [
-            {
-              $project: {
-                username: 1,
-                profilePicture: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $unwind: "$sender",
-      },
-    ]);
+    // Fetch messages for the conversation
+    const messages = await Message.find({
+      conversationId: req.params.conversationId,
+    })
+      .sort({ createdAt: 1 })
+      .populate("sender", "username profilePicture");
+
+    // Use a Set to track unique message IDs
+    const uniqueMessageIds = new Set();
+    const uniqueMessages = [];
+
+    // Filter out duplicates
+    messages.forEach((msg) => {
+      const msgId = msg._id.toString();
+      if (!uniqueMessageIds.has(msgId)) {
+        uniqueMessageIds.add(msgId);
+        uniqueMessages.push(msg);
+      }
+    });
 
     // Format messages to include date and time
-    const formatted = messages.map((msg) => {
+    const formatted = uniqueMessages.map((msg) => {
+      const msgObject = msg.toObject();
       return {
-        ...msg,
-        date: msg.createdAt
-          ? new Date(msg.createdAt).toLocaleDateString("en-US", {
+        ...msgObject,
+        date: msgObject.createdAt
+          ? new Date(msgObject.createdAt).toLocaleDateString("en-US", {
               year: "numeric",
               month: "short",
               day: "numeric",
             })
           : null,
-        time: msg.createdAt
-          ? new Date(msg.createdAt).toLocaleTimeString("en-US", {
+        time: msgObject.createdAt
+          ? new Date(msgObject.createdAt).toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
               hour12: true,
@@ -83,19 +57,6 @@ export const sendMessage = async (req, res) => {
   try {
     const { conversationId, sender, receiver, text, media } = req.body;
 
-    // Check if message already exists (prevent duplicates)
-    const existingMessage = await Message.findOne({
-      conversationId,
-      sender,
-      receiver,
-      text,
-      createdAt: { $gte: new Date(Date.now() - 5000) }, // Within last 5 seconds
-    });
-
-    if (existingMessage) {
-      return res.status(200).json(existingMessage);
-    }
-
     const message = await Message.create({
       conversationId,
       sender,
@@ -109,15 +70,8 @@ export const sendMessage = async (req, res) => {
       lastMessage: message._id,
     });
 
-    // Populate sender info
-    const populatedMessage = await Message.findById(message._id).populate(
-      "sender",
-      "username profilePicture"
-    );
-
-    res.status(201).json(populatedMessage);
+    res.status(201).json(message);
   } catch (err) {
-    console.error("Error sending message:", err);
     res.status(500).json({ error: "Failed to send message" });
   }
 };
@@ -136,7 +90,6 @@ export const getConversations = async (req, res) => {
 
     res.json(conversations);
   } catch (err) {
-    console.error("Error fetching conversations:", err);
     res.status(500).json({ error: "Failed to fetch conversations" });
   }
 };
@@ -156,7 +109,6 @@ export const createConversation = async (req, res) => {
     const newConversation = await Conversation.create({ members });
     res.status(201).json(newConversation);
   } catch (err) {
-    console.error("Error creating conversation:", err);
     res.status(500).json({ error: "Failed to create conversation" });
   }
 };
