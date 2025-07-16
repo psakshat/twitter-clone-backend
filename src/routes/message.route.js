@@ -6,7 +6,6 @@ import {
   getConversations,
   createConversation,
 } from "../controllers/message.controller.js";
-import { validateMessageInput } from "../middleware/validateMessageInput.js"; // Import the function from the new file
 
 const router = express.Router();
 
@@ -14,7 +13,7 @@ const router = express.Router();
 router.get("/:conversationId", getMessages);
 
 // 💬 Send a new message (optional, mostly handled by Socket.IO)
-router.post("/", validateMessageInput, sendMessage);
+router.post("/", sendMessage);
 
 // 📥 Get all conversations for a user
 router.get("/user/:userId", getConversations);
