@@ -46,13 +46,6 @@ const limiter = rateLimit({
 
 app.use("/api", limiter);
 
-// More specific rate limiting for auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5, // limit each IP to 5 requests per windowMs for auth
-  message: "Too many authentication attempts, please try again later.",
-});
-
 app.use("/api/auth", authLimiter);
 
 // Register routes
